@@ -43,21 +43,37 @@ with st.sidebar:
     st.header("Settings")
     uploaded_file = st.file_uploader("Upload Lumpsum Excel File", type=["xls", "xlsx"])
     
-    # Try to load default file if no file is uploaded
-    default_path = "Trailing-returns.xls"
-    if uploaded_file is None:
-        if os.path.exists(default_path):
-            try:
-                df = pd.read_excel(default_path, engine='xlrd', header=4)
-                st.info(f"Using default file: {default_path}")
-            except Exception as e:
-                df = None
-                st.error(f"Error loading default file: {e}")
-        else:
-            df = None
-            st.warning("Please upload an Excel file.")
-    else:
+    persistent_file = "last_updated_lumpsum_data.xls"
+    
+    # Logic to keep the last updated file
+    if uploaded_file is not None:
+        # Save the uploaded file locally to persist it
+        with open(persistent_file, "wb") as f:
+            f.write(uploaded_file.getbuffer())
+        st.success("File uploaded and saved as default!")
         df = load_lumpsum_data(uploaded_file)
+    else:
+        # If no file is uploaded, try the last saved persistent file first
+        if os.path.exists(persistent_file):
+            try:
+                df = pd.read_excel(persistent_file, engine='xlrd', header=4)
+                st.info("Using last updated data.")
+            except:
+                df = None
+        
+        # Fallback to original default file if no persistent file or if loading failed
+        if df is None:
+            default_path = "Trailing-returns.xls"
+            if os.path.exists(default_path):
+                try:
+                    df = pd.read_excel(default_path, engine='xlrd', header=4)
+                    st.info(f"Using default file: {default_path}")
+                except Exception as e:
+                    df = None
+                    st.error(f"Error loading default file: {e}")
+        
+        if df is None:
+            st.warning("Please upload an Excel file.")
 
     if df is not None:
         lumpsum_amount = st.number_input("Enter Lumpsum Amount (₹)", min_value=1000, value=100000, step=1000)
